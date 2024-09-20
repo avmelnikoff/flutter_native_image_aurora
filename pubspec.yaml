@@ -1,0 +1,32 @@
+name: flutter_native_image_aurora
+description: "Aurora implementation of the flutter_native_image."
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: '>=3.2.2 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # flutter_native_image_platform_interface:
+  #   path: ../flutter_native_image/flutter_native_image_platform_interface
+  flutter_native_image_platform_interface:
+    git:
+      url: https://github.com/avmelnikoff/flutter_native_image.git
+      ref: master
+      path: flutter_native_image_platform_interface/
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  plugin:
+    implements: flutter_native_image
+    platforms:
+      aurora:
+        pluginClass: FlutterNativeImagePlugin
+        dartPluginClass: FlutterNativeImageAurora
