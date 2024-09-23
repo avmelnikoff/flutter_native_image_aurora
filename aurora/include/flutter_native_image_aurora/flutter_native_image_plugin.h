@@ -44,6 +44,10 @@ private:
 
     void onCropImage(const MethodCall &call, std::unique_ptr<MethodResult> result);
 
+    bool compare(const std::string& str1, const std::string& str2);
+
+    bool checkExtension(const std::string& ext);
+
     // =========================================================================
     // Variables
     // =========================================================================

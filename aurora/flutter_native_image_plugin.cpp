@@ -68,8 +68,6 @@ void FlutterNativeImagePlugin::onGetImageProperties(
 	auto arguments = EncodableHelper::GetValue<EncodableMap>(*call.arguments());
 	auto fileArgument = EncodableHelper::GetString(arguments, "file");
 
-	std::cout << "FlutterNativeImagePlugin::onGetImageProperties: fileArgument: " << fileArgument << std::endl;
-
 	QImage image(QString::fromStdString(fileArgument));
 
 	result->Success(EncodableValue(EncodableMap{
@@ -91,40 +89,22 @@ void FlutterNativeImagePlugin::onCompressImage(
 	auto widthArgument = EncodableHelper::GetInt(arguments, "targetWidth");
 	auto heightArgument = EncodableHelper::GetInt(arguments, "targetHeight");
 
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: fileArgument: " << fileArgument << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: qualityArgument: " << qualityArgument << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: percentageArgument: " << percentageArgument << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: widthArgument: " << widthArgument << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: heightArgument: " << heightArgument << std::endl;
-
 	std::filesystem::path origPath(fileArgument);
 	std::filesystem::path tempPath(std::tmpnam(nullptr));
 
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: tempPath extension: " << tempPath.extension() << std::endl;
-
-	if (!origPath.extension().empty()) {
-		tempPath.replace_extension(origPath.extension());
+	auto extension = origPath.extension().string();
+	if (!checkExtension(extension)) {
+		extension = ".jpg";
 	}
 
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: tempPath: " << tempPath << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: tempPath extension: " << tempPath.extension() << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: filename: " << origPath.filename() << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: stem: " << origPath.stem() << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: extension: " << origPath.extension() << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: parent_path: " << origPath.parent_path() << std::endl;
+	tempPath.replace_extension(std::filesystem::path {extension});
 
 	QImage origImage(QString::fromStdString(fileArgument));
 
 	auto newWidth = (widthArgument == 0 ? (origImage.width() / 100 * percentageArgument) : widthArgument);
   auto newHeight = (heightArgument == 0 ? (origImage.height() / 100 * percentageArgument) : heightArgument);
 
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: width: " << origImage.width() << " newWidth: " << newWidth << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: height: " << origImage.height() << " newHeight: " << newHeight << std::endl;
-
 	QImage scaledImage = origImage.scaled(newWidth, newHeight, Qt::KeepAspectRatio);
-
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: width: " << scaledImage.width() << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCompressImage: height: " << scaledImage.height() << std::endl;
 
 	auto isSaved = scaledImage.save(QString::fromStdString(tempPath.string()));
 	if (isSaved) {
@@ -147,16 +127,59 @@ void FlutterNativeImagePlugin::onCropImage(
 	auto widthArgument = EncodableHelper::GetInt(arguments, "width");
 	auto heightArgument = EncodableHelper::GetInt(arguments, "height");
 
-	std::cout << "FlutterNativeImagePlugin::onCropImage: fileArgument: " << fileArgument << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCropImage: originXArgument: " << originXArgument << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCropImage: originYArgument: " << originYArgument << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCropImage: widthArgument: " << widthArgument << std::endl;
-	std::cout << "FlutterNativeImagePlugin::onCropImage: heightArgument: " << heightArgument << std::endl;
+	std::filesystem::path origPath(fileArgument);
+	std::filesystem::path tempPath(std::tmpnam(nullptr));
 
-	// TODO: implement the method!
+	auto extension = origPath.extension().string();
+	if (!checkExtension(extension)) {
+		extension = ".jpg";
+	}
 
-	// result->Success(finalFileName);
-	result->Error("create_error", "Temporary file could not be created");
+	tempPath.replace_extension(std::filesystem::path {extension});
+
+	QImage origImage(QString::fromStdString(fileArgument));
+
+	if (originXArgument < 0 
+		|| originYArgument < 0 
+		|| originXArgument > origImage.width() 
+		|| originYArgument > origImage.height()
+		|| originXArgument+widthArgument > origImage.width() 
+		|| originYArgument+heightArgument > origImage.height()) {
+		result->Error("bounds_error", "Bounds are outside of the dimensions of the source image");
+		return;
+	}
+
+	QImage scaledImage = origImage.copy(originXArgument, originYArgument, widthArgument, heightArgument);
+
+	auto isSaved = scaledImage.save(QString::fromStdString(tempPath.string()));
+	if (isSaved) {
+		result->Success(tempPath.string());
+	}
+	else {
+		result->Error("create_error", "Temporary file could not be created");
+	}
 
 	return;
+}
+
+bool FlutterNativeImagePlugin::compare(const std::string& str1, const std::string& str2) {
+	if (str1.length() != str2.length())
+		return false;
+
+	for (int i = 0; i < str1.length(); ++i) {
+		if (std::tolower(str1[i]) != std::tolower(str2[i]))
+			return false;
+	}
+
+	return true;
+}
+
+bool FlutterNativeImagePlugin::checkExtension(const std::string& ext) {
+	const std::string extPng = ".png";
+	const std::string extJpg = ".jpg";
+	const std::string extJpeg = ".jpeg";
+	return !(ext.empty() 
+			|| !compare(ext, extPng) 
+			|| !compare(ext, extJpg) 
+			|| !compare(ext, extJpeg));
 }
